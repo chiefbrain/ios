@@ -3,17 +3,17 @@ package main
 import (
 	"encoding/binary"
 	"encoding/json"
-	"time"
-	"text/tabwriter"
 	"strconv"
+	"text/tabwriter"
+	"time"
 
 	"bytes"
+	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
 	"os"
-	"flag"
 	"path"
 	"path/filepath"
 	"strings"
@@ -230,6 +230,11 @@ func restore(db *backup.MobileBackup, domain string, dest string) {
 				total += n
 				r.Close()
 				w.Close()
+				err = os.Chtimes(outPath, time.Unix(int64(rec.Atime), 0), time.Unix(int64(rec.Mtime), 0))
+				if err != nil {
+					log.Println("error setting the last modification times for file", rec, err)
+					// this is a non-fatal error, so no need to `continue`
+				}
 			}
 		}
 	}
@@ -237,11 +242,15 @@ func restore(db *backup.MobileBackup, domain string, dest string) {
 }
 
 // exists returns whether the given file or directory exists or not
-func exists(path string) (bool) {
-    _, err := os.Stat(path)
-    if err == nil { return true }
-    if os.IsNotExist(err) { return false }
-    return true
+func exists(path string) bool {
+	_, err := os.Stat(path)
+	if err == nil {
+		return true
+	}
+	if os.IsNotExist(err) {
+		return false
+	}
+	return true
 }
 
 func main() {
@@ -278,17 +287,17 @@ func main() {
 	}
 
 	if selected == nil {
-		w:= new(tabwriter.Writer)
+		w := new(tabwriter.Writer)
 		w.Init(os.Stdout, 0, 8, 2, '\t', 0)
 		fmt.Fprintln(w, "Device Name\tFile Name\tDate\tVersion\tDevice\tEncrypted")
 		fmt.Fprintln(w, "===========\t=========\t====\t=======\t======\t=========")
 		for _, man := range mm {
-			fmt.Fprintln(w, man.DeviceName +
-					"\t" + man.FileName +
-					"\t" + man.Date.String() +
-					"\t" + man.Version +
-					"\t" + man.Device +
-					"\t" + strconv.FormatBool(man.Encrypted))
+			fmt.Fprintln(w, man.DeviceName+
+				"\t"+man.FileName+
+				"\t"+man.Date.String()+
+				"\t"+man.Version+
+				"\t"+man.Device+
+				"\t"+strconv.FormatBool(man.Encrypted))
 		}
 		w.Flush()
 		return
